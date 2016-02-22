@@ -37,13 +37,14 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 public class RNFSManager extends ReactContextBaseJavaModule {
 
   private static final String NSDocumentDirectoryPath = "NSDocumentDirectoryPath";
+  private static final String NSExternalStorageDirectory = "NSExternalStorageDirectory";
   private static final String NSPicturesDirectoryPath = "NSPicturesDirectoryPath";
   private static final String NSCachesDirectoryPath = "NSCachesDirectoryPath";
   private static final String NSDocumentDirectory = "NSDocumentDirectory";
 
   private static final String NSFileTypeRegular = "NSFileTypeRegular";
   private static final String NSFileTypeDirectory = "NSFileTypeDirectory";
-  
+
   private SparseArray<Downloader> downloaders = new SparseArray<Downloader>();
 
   private static ReactApplicationContext mreactContext;
@@ -258,45 +259,45 @@ public class RNFSManager extends ReactContextBaseJavaModule {
       URL url = new URL(urlStr);
 
       DownloadParams params = new DownloadParams();
-      
+
       params.src = url;
       params.dest = file;
-      
+
       params.onTaskCompleted = new DownloadParams.OnTaskCompleted() {
         public void onTaskCompleted(DownloadResult res) {
           if (res.exception == null) {
             WritableMap infoMap = Arguments.createMap();
-            
+
             infoMap.putInt("jobId", jobId);
             infoMap.putInt("statusCode", res.statusCode);
             infoMap.putInt("bytesWritten", res.bytesWritten);
-            
+
             callback.invoke(null, infoMap);
           } else {
             callback.invoke(makeErrorPayload(res.exception));
           }
         }
       };
-      
+
       params.onDownloadBegin = new DownloadParams.OnDownloadBegin() {
         public void onDownloadBegin(int statusCode, int contentLength, Map<String, String> headers) {
           WritableMap headersMap = Arguments.createMap();
-          
+
           for (Map.Entry<String, String> entry : headers.entrySet()) {
             headersMap.putString(entry.getKey(), entry.getValue());
           }
-          
+
           WritableMap data = Arguments.createMap();
-          
+
           data.putInt("jobId", jobId);
           data.putInt("statusCode", statusCode);
           data.putInt("contentLength", contentLength);
           data.putMap("headers", headersMap);
-          
+
           sendEvent(getReactApplicationContext(), "DownloadBegin-" + jobId, data);
         }
       };
-      
+
       params.onDownloadProgress = new DownloadParams.OnDownloadProgress() {
         public void onDownloadProgress(int contentLength, int bytesWritten) {
           WritableMap data = Arguments.createMap();
@@ -308,28 +309,33 @@ public class RNFSManager extends ReactContextBaseJavaModule {
       };
 
       Downloader downloader = new Downloader();
-      
+
       downloader.execute(params);
-      
+
       this.downloaders.put(jobId, downloader);
     } catch (Exception ex) {
       ex.printStackTrace();
       callback.invoke(makeErrorPayload(ex));
     }
   }
-  
+
   @ReactMethod
   public void stopDownload(int jobId) {
     Downloader downloader = this.downloaders.get(jobId);
-    
+
     if (downloader != null) {
-      downloader.stop(); 
+      downloader.stop();
     }
   }
 
   @ReactMethod
   public void pathForBundle(String bundleNamed, Callback callback) {
     // TODO: Not sure what equilivent would be?
+  }
+
+  @ReactMethod
+  public String getExternalStorageDirectory() {
+    return Environment.getExternalStorageDirectory().getAbsolutePath();
   }
 
   private WritableMap makeErrorPayload(Exception ex) {
@@ -343,6 +349,7 @@ public class RNFSManager extends ReactContextBaseJavaModule {
     final Map<String, Object> constants = new HashMap<>();
     constants.put(NSDocumentDirectory, 0);
     constants.put(NSDocumentDirectoryPath, this.getReactApplicationContext().getFilesDir().getAbsolutePath());
+    constants.put(NSExternalStorageDirectory, Environment.getExternalStorageDirectory().getAbsolutePath());
     constants.put(NSPicturesDirectoryPath, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getAbsolutePath());
     constants.put(NSCachesDirectoryPath, this.getReactApplicationContext().getCacheDir().getAbsolutePath());
     constants.put(NSFileTypeRegular, 0);
